@@ -199,6 +199,7 @@ public:
 	int16	m_sItemMaxHp;
 	int16	m_sItemMaxMp;
 	uint32	m_sItemWeight;
+	short	m_sItemHit;
 	short	m_sItemAc;
 	short	m_sItemHitrate;
 	short	m_sItemEvasionrate;
@@ -264,11 +265,9 @@ public:
 
 	bool	m_bZoneChangeSameZone;		// Did the server change when you warped?
 
-	int		m_iSelMsgEvent[MAX_MESSAGE_EVENT];
-	short	m_sEventNid, m_sEventSid;
-	uint32	m_nQuestHelperID;
-
-	bool	m_bWeaponsDisabled;
+	int					m_iSelMsgEvent[MAX_MESSAGE_EVENT];
+	short				m_sEventNid, m_sEventSid;
+	uint32				m_nQuestHelperID;
 
 	TeamColour	m_teamColour;
 
@@ -344,8 +343,6 @@ public:
 	INLINE bool isNPCTransformation() { return m_transformationType == TransformationNPC; }
 	INLINE bool isMonsterTransformation() { return m_transformationType == TransformationMonster; }
 	INLINE bool isSiegeTransformation() { return m_transformationType == TransformationSiege; }
-
-	INLINE bool isWeaponsDisabled() { return m_bWeaponsDisabled; }
 
 	INLINE int8 GetMerchantState() { return m_bMerchantState; }
 

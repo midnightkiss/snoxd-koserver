@@ -447,19 +447,6 @@ bool CMagicProcess::GrantType4Buff(_MAGIC_TABLE * pSkill, _MAGIC_TYPE4 *pType, U
 
 	case BUFF_TYPE_IGNORE_WEAPON:		// Weapon cancellation
 		// Disarms the opponent. (rendering them unable to attack)
-#if defined(EBENEZER)
-		if (pTarget->isPlayer())
-		{
-			CUser * pTUser = TO_USER(pTarget);
-
-			pTUser->m_bWeaponsDisabled = true;
-			pTUser->UserLookChange(RIGHTHAND, 0, 0);
-
-			_ITEM_TABLE * pLeftHand = pTUser->GetItemPrototype(LEFTHAND);
-			if (pLeftHand != nullptr && !pLeftHand->isShield())
-				pTUser->UserLookChange(LEFTHAND, 0, 0);
-		}
-#endif
 		break;
 
 	case BUFF_TYPE_PASSION_OF_SOUL:		// Passion of the Soul
@@ -774,24 +761,7 @@ bool CMagicProcess::RemoveType4Buff(uint8 byBuffType, Unit *pTarget, bool bRemov
 		break;
 
 	case BUFF_TYPE_IGNORE_WEAPON:		// Weapon cancellation
-#if defined(EBENEZER)
-		if (pTarget->isPlayer())
-		{
-			CUser * pTUser = TO_USER(pTarget);
-			_ITEM_DATA * pLeftItem, * pRightItem;
-
-			_ITEM_TABLE * pLeftHand  = pTUser->GetItemPrototype(LEFTHAND, pLeftItem),
-						* pRightHand = pTUser->GetItemPrototype(RIGHTHAND, pRightItem);
-
-			pTUser->m_bWeaponsDisabled = false;
-
-			if (pLeftHand != nullptr)
-				pTUser->UserLookChange(LEFTHAND, pLeftItem->nNum, pLeftItem->sDuration);
-
-			if (pRightHand != nullptr)
-				pTUser->UserLookChange(RIGHTHAND, pRightItem->nNum, pRightItem->sDuration);
-		}
-#endif
+		// Disarms the opponent. (rendering them unable to attack)
 		break;
 
 	case BUFF_TYPE_VARIOUS_EFFECTS: //... whatever the event item grants.

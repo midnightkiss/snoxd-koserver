@@ -53,7 +53,7 @@ void CUser::Initialize()
 
 	m_sItemMaxHp = m_sItemMaxMp = 0;
 	m_sItemWeight = 0;
-	m_sItemAc = 0;
+	m_sItemHit = m_sItemAc = 0;
 
 	m_sExpGainAmount = m_bNPGainAmount = m_bNoahGainAmount = 100;
 	m_bItemExpGainAmount = m_bItemNoahGainAmount = 0;
@@ -149,8 +149,6 @@ void CUser::Initialize()
 	m_tRivalExpiryTime = 0;
 
 	m_byAngerGauge = 0;
-
-	m_bWeaponsDisabled = false;
 
 	m_teamColour = TeamColourNone;
 }
@@ -984,7 +982,7 @@ void CUser::SetSlotItemValue()
 	int item_hit = 0, item_ac = 0;
 
 	m_sItemMaxHp = m_sItemMaxMp = 0;
-	m_sItemAc = 0; 
+	m_sItemHit = m_sItemAc = 0; 
 	m_sItemWeight = m_sMaxWeightBonus = 0;	
 	m_sItemHitrate = m_sItemEvasionrate = 100; 
 	
@@ -1027,17 +1025,35 @@ void CUser::SetSlotItemValue()
 
 		// Do not apply stats to unequipped items
 		if ((i >= SLOT_MAX && i < INVENTORY_COSP)
-			// or disabled weapons.
-			|| (isWeaponsDisabled() 
-				&& (i == RIGHTHAND || i == LEFTHAND) 
-				&& !pTable->isShield())
 			// or items in magic bags.
 			|| i >= INVENTORY_MBAG)
 			continue;
 
-		item_ac = pTable->m_sAc;
 		if (pItem->sDuration == 0) 
-			item_ac /= 10;
+		{
+			item_hit = pTable->m_sDamage / 10;
+			item_ac = pTable->m_sAc / 10;
+		}
+		else 
+		{
+			item_hit = pTable->m_sDamage;
+			item_ac = pTable->m_sAc;
+		}
+
+		if (i == RIGHTHAND)
+		{
+			// NOTE: only count weapon enchant damage for right-handed weapons
+			m_sItemHit += item_hit + m_bAddWeaponDamage; 
+		}
+		// Only include AP in the left hand slot when:
+		//	- the user has at least received their first job change (i.e. they're not a beginner)
+		//	- the user is a warrior or a rogue.
+		else if (i == LEFTHAND 
+				&& !isBeginner()
+				&& (isWarrior() || isRogue()))
+		{
+			m_sItemHit += (short)(item_hit * 0.5f);
+		}
 
 		m_sItemMaxHp += pTable->m_MaxHpB;
 		m_sItemMaxMp += pTable->m_MaxMpB;
@@ -1153,6 +1169,9 @@ void CUser::SetSlotItemValue()
 		m_sItemAc += m_sAddArmourAc;
 	else
 		m_sItemAc = m_sItemAc * m_bPctArmourAc / 100;
+
+	if (m_sItemHit < 3)
+		m_sItemHit = 3;
 
 	// Update applicable weapon resistance amounts based on skill modifiers
 	// e.g. Eskrima
@@ -1578,62 +1597,55 @@ void CUser::SetUserAbility(bool bSendPacket /*= true*/)
 		return;
 	
 	float hitcoefficient = 0.0f;
-
-	if (!isWeaponsDisabled())
+	_ITEM_TABLE * pRightHand = GetItemPrototype(RIGHTHAND);
+	if (pRightHand != nullptr)
 	{
-		_ITEM_TABLE * pRightHand = GetItemPrototype(RIGHTHAND);
-		if (pRightHand != nullptr)
+		switch (pRightHand->m_bKind/10)
 		{
-			switch (pRightHand->m_bKind/10)
-			{
-			case WEAPON_DAGGER:
-				hitcoefficient = p_TableCoefficient->ShortSword;
-				break;
-			case WEAPON_SWORD:
-				hitcoefficient = p_TableCoefficient->Sword;
-				break;
-			case WEAPON_AXE:
-				hitcoefficient = p_TableCoefficient->Axe;
-				break;
-			case WEAPON_MACE:
-			case WEAPON_MACE2:
-				hitcoefficient = p_TableCoefficient->Club;
-				break;
-			case WEAPON_SPEAR:
-				hitcoefficient = p_TableCoefficient->Spear;
-				break;
-			case WEAPON_BOW:
-			case WEAPON_LONGBOW:
-			case WEAPON_LAUNCHER:
-				hitcoefficient = p_TableCoefficient->Bow;
-				bHaveBow = true;
-				break;
-			case WEAPON_STAFF:
-				hitcoefficient = p_TableCoefficient->Staff;
-				break;
-			}
-
-			sItemDamage += pRightHand->m_sDamage + m_bAddWeaponDamage;
+		case WEAPON_DAGGER:
+			hitcoefficient = p_TableCoefficient->ShortSword;
+			break;
+		case WEAPON_SWORD:
+			hitcoefficient = p_TableCoefficient->Sword;
+			break;
+		case WEAPON_AXE:
+			hitcoefficient = p_TableCoefficient->Axe;
+			break;
+		case WEAPON_MACE:
+		case WEAPON_MACE2:
+			hitcoefficient = p_TableCoefficient->Club;
+			break;
+		case WEAPON_SPEAR:
+			hitcoefficient = p_TableCoefficient->Spear;
+			break;
+		case WEAPON_BOW:
+		case WEAPON_LONGBOW:
+		case WEAPON_LAUNCHER:
+			hitcoefficient = p_TableCoefficient->Bow;
+			bHaveBow = true;
+			break;
+		case WEAPON_STAFF:
+			hitcoefficient = p_TableCoefficient->Staff;
+			break;
 		}
 
-		_ITEM_TABLE *pLeftHand = GetItemPrototype(LEFTHAND);
-		if (pLeftHand != nullptr)
-		{
-			if (pLeftHand->isBow())
-			{
-				hitcoefficient = p_TableCoefficient->Bow;
-				bHaveBow = true;
-				sItemDamage = pLeftHand->m_sDamage + m_bAddWeaponDamage;
-			}
-			else
-			{
-				sItemDamage += (pLeftHand->m_sDamage + m_bAddWeaponDamage) / 2;
-			}
-		}
+		sItemDamage = pRightHand->m_sDamage + m_bAddWeaponDamage;
 	}
 
-	if (sItemDamage < 3)
-		sItemDamage = 3;
+	_ITEM_TABLE *pLeftHand = GetItemPrototype(LEFTHAND);
+	if (pLeftHand != nullptr)
+	{
+		if (pLeftHand->isBow())
+		{
+			hitcoefficient = p_TableCoefficient->Bow;
+			bHaveBow = true;
+			sItemDamage = pLeftHand->m_sDamage + m_bAddWeaponDamage;
+		}
+		else
+		{
+			sItemDamage += (pLeftHand->m_sDamage + m_bAddWeaponDamage) / 2;
+		}
+	}
 
 	// Update stats based on item data
 	SetSlotItemValue();
